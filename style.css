@@ -74,8 +74,7 @@ body {
   transform: translateX(3px);
 }
 
-.card[data-dragging="true"],
-.list[data-dragging="true"] {
+.card[data-dragging="true"] {
   position: absolute;
   cursor: grabbing;
   transform: rotate(2deg);
