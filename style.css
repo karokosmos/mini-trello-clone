@@ -17,10 +17,12 @@ body {
 
 .board {
   margin: 2rem;
+  /* height: 100vh; */
   display: flex;
   flex-direction: row;
   align-items: flex-start;
   flex-wrap: nowrap;
+  /* overflow: auto; */
 }
 
 /*******************
@@ -70,6 +72,13 @@ body {
 
 .card:hover > .card-title {
   transform: translateX(3px);
+}
+
+.card[data-dragging="true"],
+.list[data-dragging="true"] {
+  position: absolute;
+  cursor: grabbing;
+  transform: rotate(2deg);
 }
 
 /*******************
@@ -223,7 +232,15 @@ a,
   transition: transform 0.2s ease-in-out;
 }
 
+/*******************
+* Others
+*******************/
+
 .hidden {
   display: none;
 }
 
+.preview {
+  background-color: #0068a0;
+}
+ 

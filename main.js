@@ -1,57 +1,58 @@
-/******************** 
- * Variables
-********************/
-
-const board = document.querySelector('.board')
-const listButton = document.querySelector('.add-list')
-
-/******************** 
- * Functions
-********************/
-
 /**
  * Activates the form and gets title for the new card or list
  * @param {HTMLElement} form to be activated
  * @param {HTMLElement} button that fired activateForm
  */
 const activateForm = (form, button) => {
-  const formContainer = form.parentElement
+  showHideForm(form, button)
   const input = form.querySelector('.form-input')
-  button.classList.add('hidden')
-  formContainer.classList.remove('hidden')
   input.focus()
-
-  const submitForm = e => {
-    e.preventDefault()
-    const title = input.value.trim()
-    if (!title) return
-    if (form.classList.contains('new-card')) {
-      const list = button.parentElement
-      createCard(list, title)
-    } else if (form.classList.contains('new-list')) {
-      createList(title)
-    }
-    button.classList.remove('hidden')
-    formContainer.classList.add('hidden')
-    input.value = ''
-    form.removeEventListener('submit', submitForm)
-  }
-
-  const closeForm = e => {
-    if (!e.target.closest('.cancel')) return
-    button.classList.remove('hidden')
-    formContainer.classList.add('hidden')
-    input.value = ''
-    form.removeEventListener('click', closeForm)
-  }
 
   form.addEventListener('submit', submitForm)
   form.addEventListener('click', closeForm)
+
+  function submitForm(e) {
+    e.preventDefault()
+    const title = input.value.trim()
+    if (!title)
+      return
+    if (form.classList.contains('new-card')) {
+      const list = button.parentElement
+      createCard(list, title)
+    } else if (form.classList.contains('new-list')) {
+      createList(title)
+    }
+    showHideForm(form, button)
+    input.value = ''
+    form.removeEventListener('submit', submitForm)
+    form.removeEventListener('click', closeForm)
+  }
+
+  function closeForm(e) {
+    if (!e.target.closest('.cancel'))
+      return
+    showHideForm(form, button)
+    input.value = ''
+    form.removeEventListener('submit', submitForm)
+    form.removeEventListener('click', closeForm)
+  }
 }
 
-/*
-FUNCTIONS TO HIDE AND SHOW FORMS
-*/
+/**
+ * Show or hide form according to classes
+ * @param {HTMLElement} form element to be shown/hidden 
+ * @param {HTMLElement} button element to be shown/hidden 
+ */
+const showHideForm = (form, button) => {
+  const formContainer = form.parentElement
+  if (formContainer.classList.contains('hidden')) {
+    formContainer.classList.remove('hidden')
+    button.classList.add('hidden')
+  } else {
+    formContainer.classList.add('hidden')
+    button.classList.remove('hidden')
+  }
+}
 
 /**
  * Creates a new card on the list
@@ -73,6 +74,16 @@ const createCard = (list, title) => {
 
   const cardButton = list.querySelector('.add-card')
   list.insertBefore(newCard, cardButton)
+
+  // Listen delete-button and delete card on click
+  const deleteCardButton = newCard.querySelector('.delete-card')
+  deleteCardButton.addEventListener('click', e => {
+    const card = e.target.closest('.card')
+    const currentList = e.target.closest('.list')
+    currentList.removeChild(card)
+  })
+
+  dragDropCard(newCard)
 }
 
 /**
@@ -116,13 +127,94 @@ const createList = title => {
     </li>
   `
 
-  board.insertBefore(newList, listButton)
+  const board = document.querySelector('.board')
+  board.insertBefore(newList, addListButton)
 
-  // Event listener for the delete button
+  // Listen delete-button and delete list on click
   const deleteListButton = newList.querySelector('.delete-list')
   deleteListButton.addEventListener('click', e => {
     const list = e.target.closest('.list')
     board.removeChild(list)
+  })
+
+  // Listen add-card button and call activateForm() on click
+  const addCardButton = newList.querySelector('.add-card')
+  addCardButton.addEventListener('click', _ => {
+    const form = newList.querySelector('.new-card')
+    activateForm(form, addCardButton)
+  })
+}
+
+/**
+ * Adds drag and drop functionalities to card
+ * @param {HTMLElement} card element that can be dragged & dropped
+ */
+const dragDropCard = card => {
+  card.addEventListener('pointerdown', e => {
+    e.preventDefault()
+    if (e.target.closest('.delete-card')) return
+    const cardRect = card.getBoundingClientRect()
+
+    // Create preview
+    const preview = card.cloneNode()
+    preview.classList.add('preview')
+    preview.style.height = `${cardRect.height}px`
+    card.before(preview)
+
+    // Prepare card for dragging
+    document.body.append(card)
+    card.dataset.dragging = 'true'
+    card.style.left = `${cardRect.left}px`
+    card.style.top = `${cardRect.top}px`
+    card.style.width = `${cardRect.width}px`
+    card.style.height = `${cardRect.height}px`
+
+    card.setPointerCapture(e.pointerId)
+    card.addEventListener('pointermove', move)
+    card.addEventListener('pointerup', up)
+
+    function move(e) {
+      const left = parseFloat(card.style.left)
+      const top = parseFloat(card.style.top)
+      card.style.left = `${left + e.movementX}px`
+      card.style.top = `${top + e.movementY}px`
+      card.style.border = 'solid 1px #0079BF'
+
+      const currentPosition = document.elementFromPoint(left, top)
+      const list = currentPosition.closest('.list')
+      if (!list) return
+
+      const previewExists = [...list.children].find(el => el === preview)
+      if (!previewExists) {
+        const addCardButton = list.querySelector('.add-card')
+        list.insertBefore(preview, addCardButton)
+      }
+
+      const cards = [...list.querySelectorAll('.card')]
+      const cardPositions = cards.map(card => card.getBoundingClientRect())
+      const cardPosition = cardPositions.findIndex(pos => {
+        return (pos.left < left && left < pos.right) && (pos.top < top && top < pos.bottom)
+      })
+
+      if (cardPosition === -1) return
+      const cardElement = cards[cardPosition]
+      const previewPosition = cards.findIndex(card => card === preview)
+
+      if (cardPosition > previewPosition) {
+        cardElement.after(preview)
+      } else {
+        cardElement.before(preview)
+      }
+    }
+
+    function up(e) {
+      card.dataset.dragging = 'false'
+      card.releasePointerCapture(e.pointerId)
+      preview.before(card)
+      preview.remove()
+      card.removeEventListener('pointermove', move)
+      card.removeEventListener('pointerup', up)
+    }
   })
 }
 
@@ -130,22 +222,8 @@ const createList = title => {
  * Event listeners
 ********************/
 
-// Lisää nää listenerit funktioiden sisään
-board.addEventListener('click', e => {
-  if (!e.target.closest('.delete-card') && !e.target.closest('.add-card')) return
-  const list = e.target.closest('.list')
-
-  if (e.target.closest('.add-card')) {
-    const form = list.querySelector('form')
-    const button = list.querySelector('.add-card')
-    activateForm(form, button)
-  } else if (e.target.closest('.delete-card')) {
-    const card = e.target.closest('.card')
-    list.removeChild(card)
-  }
-})
-
-listButton.addEventListener('click', e => {
+const addListButton = document.querySelector('.add-list')
+addListButton.addEventListener('click', e => {
   const button = e.currentTarget
   const form = document.querySelector('.new-list')
   activateForm(form, button)
