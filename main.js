@@ -105,7 +105,7 @@ const createList = title => {
     </div>
     <li class="add-card">
       <a href="#">
-        <img class="plus-icon" src="/images/plus.svg" alt="Plus sign">
+        <img class="plus-icon" src="images/plus.svg" alt="Plus sign">
         Add another card
       </a>
     </li>
